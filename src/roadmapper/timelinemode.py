@@ -32,3 +32,4 @@ class TimelineMode:
     QUARTERLY = "Q"
     HALF_YEARLY = "H"
     YEARLY = "Y"
+    PROGRAM = "PI"

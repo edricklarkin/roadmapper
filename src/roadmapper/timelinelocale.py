@@ -34,6 +34,7 @@ default_timeline_locale_settings = {
         },
         "half_year": {"text": "H{0}"},
         "quarter": {"text": "Q{0}"},
+        "program": {"text": "PI{0}"},
         "month": {
             "text": "{0}",
             "generic_text": "Month {0}",
@@ -49,12 +50,14 @@ default_timeline_locale_settings = {
 generic_timeline_locale_settings = {
     "locale": "",
     "settings": {
+        "fiscal": {"text": "FY {0}"}, #added line for FY  year reporting
         "year": {
             "text": "Year {0}",
             "generic_text": "Year {0}",
         },
         "half_year": {"text": "H{0}"},
         "quarter": {"text": "Q{0}"},
+        "program": {"text": "PI{0}"}, #added line for program reporting
         "month": {
             "text": "{0}",
             "generic_text": "Month {0}",

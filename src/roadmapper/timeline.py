@@ -30,7 +30,7 @@ from .timelineitem import TimelineItem
 from .timelineitemyear import TimelineYear
 from .timelinemode import TimelineMode
 from .timelinelocale import TimelineLocale
-
+from .program_data import programs, fin_years
 
 @dataclass(kw_only=True)
 class Timeline:
@@ -62,10 +62,13 @@ class Timeline:
     year_generic_text_format: str = field(init=False)
     half_year_text_format: str = field(init=False)
     quarter_text_format: str = field(init=False)
+    program_text_format: str = field(init=False)
     month_text_format: str = field(init=False)
     month_generic_text_format: str = field(init=False)
     week_text_format: str = field(init=False)
     week_generic_text_format: str = field(init=False)
+    
+
 
     def __calculate_draw_position(self, painter: Painter) -> tuple[int, int, int]:
         """Calculate the draw position of the timeline
@@ -107,10 +110,20 @@ class Timeline:
             locale (str): Locale
         """
         self.locale_settings = TimelineLocale(locale)
-        (
-            self.year_text_format,
-            self.year_generic_text_format,
-        ) = self.locale_settings.get_timeline_locale_settings("year")
+
+#editing for program reporting
+#when using program mode call fiscal for year formating
+        if self.mode == TimelineMode.PROGRAM:
+                self.year_text_format = self.locale_settings.get_timeline_locale_settings("fiscal")
+        else: #else statement is the original code without if statement
+            (
+                self.year_text_format,
+                self.year_generic_text_format,
+            ) = self.locale_settings.get_timeline_locale_settings("year")
+        self.program_text_format = self.locale_settings.get_timeline_locale_settings(
+            "program"
+        )
+#end addition for program reporting
         self.half_year_text_format = self.locale_settings.get_timeline_locale_settings(
             "half_year"
         )
@@ -154,7 +167,24 @@ class Timeline:
                 timelineitemgroup_end,
             ) = self.__get_timeline_item_dates(index)
 
-            if self.show_generic_dates is False:
+#start editing for program reporting            
+#changing year grouping for fiscal years            
+            fiscal_year = self.__get_timeline_item_value(index)[0:5]
+            (
+                timelineitemgroup_start,
+                timelineitemgroup_end,
+            ) = self.__get_timeline_item_dates(index)
+
+            
+            if self.mode == TimelineMode.PROGRAM:
+                if fin_years.get(fiscal_year) in year_groups:
+                    year_groups[fin_years.get(fiscal_year)] += 1
+                else:
+                    year_groups[fin_years.get(fiscal_year)] = 1            
+
+#end editing for program reproting
+                       
+            elif self.show_generic_dates is False:
                 if index_year in year_groups:
                     year_groups[index_year] += 1
                 else:
@@ -331,6 +361,19 @@ class Timeline:
                 this_quarter = (this_month - 1) // 3 + 1
                 # timeline_text = f"Quarter {this_quarter}"
             timeline_text = self.quarter_text_format.format(this_quarter)
+
+#added for program reporting
+#this statement creates the PIs across the timeline
+#Generic dates do not work with Program reporting therefore no inner if statement
+        elif self.mode == TimelineMode.PROGRAM:
+            this_month = self.start + relativedelta(months=+(index * 3))
+            #print((this_month.year, this_month.month))
+            
+            this_program = programs.get((this_month.year, this_month.month))
+
+            timeline_text = self.program_text_format.format(this_program)
+
+#end editing for program reporting
         elif self.mode == TimelineMode.HALF_YEARLY:
             if self.show_generic_dates is False:
                 this_month = self.start + relativedelta(months=+(index * 6))
@@ -390,10 +433,22 @@ class Timeline:
         elif self.mode == TimelineMode.MONTHLY:
             this_month = self.start + relativedelta(months=+index)
             timeline_value = f"{this_month.year}{this_month.strftime('%m')}"
+        
+        
+        #quarterly here is treating quarters as months recieving index (roadmap item) value and multiplying by 3
         elif self.mode == TimelineMode.QUARTERLY:
+            #this_month appears to be used only for the acutal calendar year
             this_month = self.start + relativedelta(months=+(index * 3))
             this_quarter = (this_month.month - 1) // 3 + 1
             timeline_value = f"{this_month.year}{this_quarter}"
+
+#edited for program reporting
+        elif self.mode == TimelineMode.PROGRAM:
+            this_month = self.start + relativedelta(months=+(index * 3))
+            this_quarter = (this_month.month - 1) // 3 + 1
+            timeline_value = f"{this_month.year}{this_quarter}"
+
+#end editing for program reporting
         elif self.mode == TimelineMode.HALF_YEARLY:
             this_month = self.start + relativedelta(months=+(index * 6))
             this_halfyear = (this_month.month - 1) // 6 + 1
@@ -403,6 +458,7 @@ class Timeline:
             timeline_value = f"{this_month.year}"
 
         return timeline_value
+
 
     def __get_timeline_item_dates(self, index: int) -> tuple[datetime, datetime]:
         """Get the start and end dates of the timeline item
@@ -460,6 +516,29 @@ class Timeline:
             timeline_end_period = datetime(
                 this_year + 3 * this_quarter // 12, 3 * this_quarter % 12 + 1, 1
             ) + timedelta(days=-1)
+            
+#edited for program reporting
+        elif self.mode == TimelineMode.PROGRAM:
+            timeline_period = self.__get_timeline_item_value(index)
+            this_year = int(timeline_period[0:4])
+            this_quarter = int(timeline_period[4:])
+            if this_quarter == 1:
+                this_month = 1
+            elif this_quarter == 2:
+                this_month = 4
+            elif this_quarter == 3:
+                this_month = 7
+            elif this_quarter == 4:
+                this_month = 10
+
+            timeline_start_period = datetime(
+                this_year, 3 * ((this_month - 1) // 3) + 1, 1
+            )
+            timeline_end_period = datetime(
+                this_year + 3 * this_quarter // 12, 3 * this_quarter % 12 + 1, 1
+            ) + timedelta(days=-1)            
+        
+#end editing for program reporting                  
         elif self.mode == TimelineMode.HALF_YEARLY:
             timeline_period = self.__get_timeline_item_value(index)
             this_year = int(timeline_period[0:4])
